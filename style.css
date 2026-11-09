@@ -1,0 +1,230 @@
+body {
+    margin: 0;
+    padding: 20px;
+    background-color: #1a1a1a;
+    color: #ddd;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#app {
+    display: flex;
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    margin-top: 20px;
+}
+
+.map-container {
+    position: relative;
+    border-right: 2px solid #444;
+}
+
+canvas {
+    display: block;
+    cursor: pointer;
+    background: #111;
+}
+
+#turn-indicator {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    font-weight: bold;
+    font-size: 18px;
+    line-height: 1.4;
+}
+
+.sidebar {
+    width: 350px;
+    padding: 20px;
+    background: #2a2a2a;
+    overflow-y: auto;
+    max-height: 85vh;
+}
+
+h2 {
+    font-size: 16px;
+    color: #aaa;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    margin-top: 20px;
+}
+
+.players-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.player-panel {
+    background: #333;
+    padding: 10px;
+    border-radius: 8px;
+    border-left: 5px solid #555;
+    font-size: 13px;
+}
+.player-panel.active {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    transform: scale(1.02);
+    background: #3a3a3a;
+}
+.player-panel h3 { margin: 0 0 5px 0; font-size: 14px; }
+
+.cards-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.card {
+    width: 90px;
+    height: 130px;
+    background: #4a3b2c;
+    border: 2px solid #8b6d4a;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 5px;
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    border-color: #f1c40f;
+}
+.card-title { font-weight: bold; color: #f1c40f; margin-bottom: 5px; font-size: 12px; }
+.card-desc { font-size: 10px; color: #ccc; }
+.card-price { font-size: 10px; color: #8b6d4a; margin-top: 5px; font-weight: bold; }
+.card.bought {
+    opacity: 0.3;
+    pointer-events: none;
+    filter: grayscale(100%);
+}
+
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.action-btn {
+    padding: 12px;
+    background: #457b9d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+.action-btn:hover:not(:disabled) { background: #5a9bc4; }
+.action-btn:disabled {
+    background: #444 !important;
+    color: #777 !important;
+    cursor: not-allowed;
+}
+.buy-btn { background: #2a9d8f; }
+.buy-btn:hover:not(:disabled) { background: #35c7b6; }
+
+.log-window {
+    height: 150px;
+    background: #111;
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 12px;
+    overflow-y: auto;
+    font-family: monospace;
+    margin-top: 10px;
+}
+
+/* --- СТИЛИ ДЛЯ ОКОН --- */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #2b2b2b;
+    border: 4px solid #8b0000;
+    border-radius: 10px;
+    padding: 30px;
+    width: 350px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(139, 0, 0, 0.5);
+    animation: popIn 0.3s ease;
+}
+
+@keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-content h2 {
+    color: #e63946;
+    margin-top: 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.threat-icon {
+    font-size: 60px;
+    margin: 20px 0;
+}
+
+.threat-stats {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 20px 0;
+    color: #f1c40f;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-cancel {
+    padding: 10px 20px;
+    background: #555;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-fight {
+    padding: 10px 20px;
+    background: #e63946;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-fight:hover { background: #ff4d5a; }

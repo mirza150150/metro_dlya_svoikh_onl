@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Метро 2033: Сетевая игра</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Подключаем библиотеку PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <!-- МЕНЮ ПОДКЛЮЧЕНИЯ (Видно только в начале) -->
+    <div id="connection-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10000;">
+        <h1 style="color: #e63946; font-size: 40px;">Метро 2033: Онлайн</h1>
+        <p style="color: #aaa; margin-bottom: 30px;">Выберите действие, чтобы начать сетевую игру</p>
+
+        <button id="btn-host" class="action-btn" style="width: 300px; font-size: 18px; margin-bottom: 10px;">Создать игру (Я Хост)</button>
+        <div id="host-info" style="display: none; color: #f1c40f; margin-top: 20px; text-align: center;">
+            Ваш код комнаты: <br><b id="room-code" style="font-size: 30px; letter-spacing: 5px;"></b><br>
+            <span style="color: #aaa; font-size: 14px;">Отправьте этот код другу. Ждем подключения...</span>
+        </div>
+
+        <div style="margin-top: 30px; border-top: 1px solid #444; padding-top: 20px; width: 300px; text-align: center;">
+            <input type="text" id="join-code" placeholder="Введите код друга" style="padding: 10px; width: 100%; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #222; color: white; text-align: center; font-size: 18px;">
+            <button id="btn-join" class="action-btn buy-btn" style="width: 100%; font-size: 18px;">Подключиться</button>
+        </div>
+    </div>
+
+    <div id="app">
+        <!-- (Весь ваш старый код игры: map-container, sidebar и т.д.) -->
+        <div class="map-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="turn-indicator">
+                Ход: <span id="current-player-name">Красная линия</span><br>
+                <span style="font-size: 14px; color: #aaa;">Фаза: <span id="current-phase">Ресурсы</span></span>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <h2>Игроки</h2>
+            <div id="players-list" class="players-grid"></div>
+
+            <h2>Ваши карточки (Снаряжение)</h2>
+            <div id="cards-area" class="cards-container">
+                <div class="card" id="card-akm" onclick="buyCard('akm', 1, 1)">
+                    <div class="card-title">АКМ</div>
+                    <div class="card-desc">+1 к силе героя</div>
+                    <div class="card-price">Стоимость: 🐷1 🔫1</div>
+                </div>
+                <div class="card" id="card-armor" onclick="buyCard('armor', 1, 1)">
+                    <div class="card-title">Бронежилет</div>
+                    <div class="card-desc">+1 к силе героя</div>
+                    <div class="card-price">Стоимость: 🐷1 🔫1</div>
+                </div>
+            </div>
+
+            <h2>Управление</h2>
+            <div class="controls">
+                <button id="btn-next-phase" class="action-btn">Следующая фаза ➔</button>
+                <button id="btn-buy-army" class="action-btn buy-btn">Нанять +1 армию (1 Свинья + 1 Патрон)</button>
+                <button id="btn-get-quest" class="action-btn" style="background: #f1c40f; color: #000; margin-top: 5px;">Взять задание</button>
+                <button id="btn-reset-quest" class="action-btn" style="background: #e63946; margin-top: 5px;">Сбросить задание (1 🔫)</button>
+                <button id="btn-law" class="action-btn" style="background: #457b9d; margin-top: 5px;">Созвать совет (Закон)</button>
+            </div>
+
+            <h2>Ваше задание</h2>
+            <div id="quest-box" style="background: #333; padding: 10px; border-radius: 5px; border-left: 4px solid #f1c40f; min-height: 40px; font-size: 14px;">
+                Нет активного задания
+            </div>
+
+            <h2>Журнал событий</h2>
+            <div id="log" class="log-window"></div>
+        </div>
+    </div>
+
+    <!-- ОКНА (угрозы, героя, законов) остаются без изменений -->
+    <div id="threat-modal" class="modal"><div class="modal-content"><h2 id="threat-name"></h2><div class="threat-icon">👹</div><p id="threat-desc"></p><div class="threat-stats">Сила угрозы: <span id="threat-power">0</span></div><div class="modal-buttons"><button onclick="closeThreatModal()" class="btn-cancel">Отступить</button><button onclick="resolveThreatFight()" class="btn-fight">⚔️ В Бой!</button></div></div></div>
+
+    <div id="hero-modal" class="modal"><div class="modal-content" style="border-color: #f1c40f;"><h2>Действия героя</h2><p>Вы прибыли на станцию <b id="hero-target-name"></b>.</p><div class="modal-buttons" style="flex-direction: column;"><button onclick="heroAttack()" id="btn-hero-attack" class="btn-fight" style="width: 100%; margin-bottom: 10px;">⚔️ Атаковать станцию</button><button onclick="heroGather()" id="btn-hero-gather" class="action-btn buy-btn" style="width: 100%; margin-bottom: 10px;">⛏️ Собрать ресурсы</button><button onclick="endHeroTurn()" class="btn-cancel" style="width: 100%;">Завершить ход</button></div></div></div>
+
+    <div id="law-modal" class="modal"><div class="modal-content" style="border-color: #457b9d;"><h2>Голосование</h2><p id="law-text" style="font-size: 18px; margin: 20px 0;">Текст закона...</p><div class="modal-buttons"><button onclick="vote('yes')" class="btn-fight" style="background: #2a9d8f;">За</button><button onclick="vote('no')" class="btn-cancel" style="background: #e63946;">Против</button></div></div></div>
+
+    <script src="game.js"></script>
+</body>
+</html>
