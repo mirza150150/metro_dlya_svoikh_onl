@@ -4,7 +4,10 @@ const ctx = canvas.getContext('2d');
 // --- 0. СЕТЕВЫЕ ПЕРЕМЕННЫЕ (PeerJS) ---
 let peer = null;
 let conn = null;
-let myPlayerId = 1; // По умолчанию хост играет за 1 (Красные)
+let myPlayerId = 1;
+
+// ВАШ АДРЕС СЕРВЕРА VERCEL
+const MY_SERVER_HOST = 'peerjs-server-vercel-xi.vercel.app';
 
 // --- 1. ИГРОВЫЕ ДАННЫЕ ---
 let stations = [
@@ -53,28 +56,35 @@ function getCurrentPlayer() { return players[currentPlayerIdx]; }
 
 // --- СЕТЕВАЯ ЛОГИКА (P2P) ---
 function setupPeer() {
-    // Создаем peer с рандомным ID
-    peer = new Peer();
+    peer = new Peer({
+        host: MY_SERVER_HOST,
+        port: 443,
+        path: '/',
+        secure: true
+    });
 
     peer.on('open', (id) => {
         document.getElementById('room-code').innerText = id;
         document.getElementById('host-info').style.display = 'block';
-        myPlayerId = 1; // Хост играет за 1
+        myPlayerId = 1;
     });
 
-    // Когда друг подключается к нам
     peer.on('connection', (connection) => {
         conn = connection;
         setupConnection();
         document.getElementById('connection-screen').style.display = 'none';
         logMessage("Друг подключился! Игра началась.");
     });
+
+    peer.on('error', (err) => {
+        alert("Ошибка подключения: " + err.type);
+        document.getElementById('btn-host').disabled = false;
+    });
 }
 
 function setupConnection() {
     conn.on('data', (data) => {
         if (data.type === 'sync') {
-            // Получаем состояние игры от другого игрока
             players = data.players;
             stations = data.stations;
             currentPlayerIdx = data.currentPlayerIdx;
@@ -101,9 +111,9 @@ function broadcastState() {
     }
 }
 
-// --- ОБРАБОТЧИКИ КНОПОК ПОДКЛЮЧЕНИЯ ---
 document.getElementById('btn-host').onclick = () => {
     document.getElementById('btn-host').disabled = true;
+    document.getElementById('btn-host').innerText = "Создание комнаты...";
     setupPeer();
 };
 
@@ -111,31 +121,49 @@ document.getElementById('btn-join').onclick = () => {
     const code = document.getElementById('join-code').value.trim();
     if (!code) return alert("Введите код!");
 
-    peer = new Peer();
+    const btn = document.getElementById('btn-join');
+    btn.innerText = "Подключение...";
+    btn.disabled = true;
+
+    peer = new Peer({
+        host: MY_SERVER_HOST,
+        port: 443,
+        path: '/',
+        secure: true
+    });
+
     peer.on('open', () => {
         conn = peer.connect(code);
-        myPlayerId = 2; // Клиент играет за 2
+        myPlayerId = 2;
+
+        conn.on('error', () => {
+            alert("Неверный код или друг еще не создал игру!");
+            btn.innerText = "Подключиться";
+            btn.disabled = false;
+        });
 
         conn.on('open', () => {
             document.getElementById('connection-screen').style.display = 'none';
             logMessage("Вы подключились к игре!");
-            // Запрашиваем текущее состояние у хоста
             broadcastState();
         });
 
         setupConnection();
     });
+
+    peer.on('error', (err) => {
+        alert("Ошибка сети: " + err.type);
+        btn.innerText = "Подключиться";
+        btn.disabled = false;
+    });
 };
 
-// --- ВАЖНО: Блокировка ходов, если сейчас не ваш ход ---
 function isMyTurn() {
-    // Если сетевой игры нет (hot-seat), ходить могут оба
     if (!conn) return true;
-    // Если сеть есть, ходить может только тот, чей сейчас currentPlayerIdx
     return (currentPlayerIdx + 1) === myPlayerId;
 }
 
-// --- 2. ОТРИСОВКА КАРТЫ (без изменений) ---
+// --- 2. ОТРИСОВКА КАРТЫ ---
 function drawMap() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#555'; ctx.lineWidth = 4;
@@ -187,7 +215,7 @@ function drawMap() {
     });
 }
 
-// --- 3. ИНТЕРФЕЙС (без изменений, но с учетом isMyTurn) ---
+// --- 3. ИНТЕРФЕЙС ---
 function updateUI() {
     const list = document.getElementById('players-list');
     list.innerHTML = '';
@@ -228,7 +256,6 @@ function logMessage(msg) {
     logBox.scrollTop = logBox.scrollHeight;
 }
 
-// После любого изменения вызываем broadcastState()
 function checkQuest(type) {
     const p = getCurrentPlayer();
     if (!p.quest) return;
@@ -257,7 +284,6 @@ function checkWin() {
     }
 }
 
-// --- 4. КНОПКИ (Добавлена проверка isMyTurn) ---
 document.getElementById('btn-get-quest').onclick = () => {
     if(!isMyTurn()) return;
     const p = getCurrentPlayer();
@@ -308,11 +334,10 @@ document.getElementById('btn-next-phase').onclick = () => {
         currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
         currentPhase = 1; selectedStation = null; resetMarket();
     }
-    broadcastState(); // <--- СИНХРОНИЗАЦИЯ!
+    broadcastState();
     drawMap(); updateUI();
 };
 
-// --- 5. КЛИКИ ПО КАРТЕ (Проверка isMyTurn) ---
 canvas.addEventListener('click', (e) => {
     if (gameOver || !isMyTurn() || (currentPhase !== 3 && currentPhase !== 4)) return;
 
@@ -352,11 +377,10 @@ canvas.addEventListener('click', (e) => {
         clickedStation.army -= 1; if (clickedStation.army < 1) clickedStation.army = 1;
     }
     currentPlayerIdx = (currentPlayerIdx + 1) % players.length; currentPhase = 1; selectedStation = null; resetMarket();
-    broadcastState(); // <--- СИНХРОНИЗАЦИЯ!
+    broadcastState();
     updateUI(); drawMap();
 });
 
-// --- 6-10. ОСТАЛЬНЫЕ ФУНКЦИИ (Покупка, Угрозы, Герои, Законы) ---
 window.buyCard = function(cardId, costPigs, costBullets) {
     if (gameOver || !isMyTurn() || currentPhase !== 2) return;
     const p = getCurrentPlayer();
